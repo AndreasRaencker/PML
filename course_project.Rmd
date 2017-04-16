@@ -1,0 +1,98 @@
+---
+title: "Classification of quality of weight lifting exercises using wearables' sensor data"
+author: "Andreas Raencker"
+date: "15 April 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+Using publicly available [data](http://groupware.les.inf.puc-rio.br/har) we applied machine learning techniques to create a model that classifies the quality of execution of weight lifting exercises based on wearables' sensor data. The model was applied on 20 test cases then.
+We fitted 3 applying the following machine learning methods from R's caret package: rpart, random forest and gbm. The random forest provided the best result with 99.1% accuracy (estimated on an independent validation set). It was able to correctly precit the outcome for the 20 test cases. However, it required the highest amount of computing power.
+
+## Data Processing
+
+We load the training and test data from the downloaded csv file. 
+
+It appears that the training dataset is not tidy with respect to the outcome to be predicted. Each row represents sensor data at a specific point in time while exercises take some time. Thus there are several sensor observations per exercise.
+
+However, the test data contains 20 point in time observations only. Thus the prediction algorithm is to be designed on such data. Consequently we cannot use the aggregated features from the training data for prediction. We furthermore deem columns "X", "user_name", the 3 "timestamp" columns and the 2 "window" columns as inappropriate for predicting "classe".
+
+To perform cross validation we create subsets for training (60%), testing (20%) and validation (20%).
+
+```{r data processing}
+rd <- read.csv("pml-training.csv")
+td <- read.csv("pml-testing.csv")
+
+ad <- subset(rd, 
+             select = c(grep("^(roll|pitch|yaw|total|gyros|accel|magnet)",
+                             colnames(rd), value = TRUE), "classe"))
+
+suppressPackageStartupMessages(library(caret))
+set.seed(20170415)
+inValidation <- createDataPartition(ad$classe, p = 0.2)[[1]]
+validation <- ad[inValidation,]
+modelling <- ad[-inValidation,]
+inTraining <- createDataPartition(modelling$classe, p = 0.75)[[1]]
+training <- modelling[inTraining,]
+testing <- modelling[-inTraining,]
+```
+
+## Exploratory Analysis
+
+A summary of the training set particularly reveals skewness in the distribution of some of the gyros and magnet variables. As an example we show a density plot of the variable "gyros_forearm_y".
+
+```{r exploratory analysis}
+summary(training)
+qplot(gyros_forearm_y, data = training, color = classe, geom = "density")
+```
+
+## Model Building
+
+We train 3 different models: a tree, a random forest and a gbm. We select the model that performs best on the test set. Choice of the techniques is justified by the fact that we aim at predicting a factor. Furthermore, these methods are robust regarding skewed distributions.
+
+```{r model building, cache = TRUE}
+system.time(fit_tree <- train(classe ~ ., data = training, method = "rpart"))
+system.time(fit_rf <- train(classe ~ ., data = training, method = "rf", verbose = FALSE))
+system.time(fit_gbm <- train(classe ~ ., data = training, method = "gbm", verbose = FALSE))
+```
+
+```{r testing models}
+confusionMatrix(predict(fit_tree, newdata = testing), testing$classe)$overall
+confusionMatrix(predict(fit_rf, newdata = testing), testing$classe)$overall
+confusionMatrix(predict(fit_gbm, newdata = testing), testing$classe)$overall
+```
+
+The accuracy of the tree model is not acceptable. The random forest model has the highest accuracy on the testing set. It's accuracy on the test set is also significantly higher than the gbm model's accuracy. Thus we choose the random forest model as our final model.
+
+## Estimating model accuracy
+
+Accuracy is estimated on the validation set. 
+
+```{r estimating accuracy of final model}
+confusionMatrix(predict(fit_rf, newdata = validation), validation$classe)$overall
+```
+
+The final model's accuracy is estimated has 99.11% with a 95% confidence interval of [98.76%, 99.38%]. Consequently we expect an out of sample misclassificaton rate of about 1%.
+
+## Application to test data
+
+```{r}
+predict(fit_rf, newdata = td)
+```
+
+## Appendix
+
+### References
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+### Session Info
+
+```{r session info}
+sessionInfo()
+```

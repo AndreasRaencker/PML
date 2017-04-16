@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Synopsis
 
 Using publicly available [data](http://groupware.les.inf.puc-rio.br/har) we applied machine learning techniques to create a model that classifies the quality of execution of weight lifting exercises based on wearables' sensor data. The model was applied on 20 test cases then.
-We fitted 3 applying the following machine learning methods from R's caret package: rpart, random forest and gbm. The random forest provided the best result with 99.1% accuracy (estimated on an independent validation set). It was able to correctly precit the outcome for the 20 test cases. However, it required the highest amount of computing power.
+We fitted 3 different models applying the following machine learning methods from R's caret package: rpart, random forest and gbm. The random forest provided the best result with 99.1% accuracy (estimated on an independent validation set). It was able to correctly precit the outcome for the 20 test cases. However, it required the highest amount of computing power.
 
 ## Data Processing
 
